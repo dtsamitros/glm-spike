@@ -5,6 +5,7 @@ export interface GuestList {
     guestId: number;
     guestName: string;
     guestImageUrl: string;
+    guestImageBase64?: string;
     checkedIn: string | null;
     pending: boolean;
 }

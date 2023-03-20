@@ -91,6 +91,10 @@ app.route("/events/:id").get((req, res) => {
     res.status(200).json(events.find((event) => event.id === +req.params.id));
 });
 
+app.route("/events/:id").post((req, res) => {
+    res.status(200).json(events.find((event) => event.id === +req.params.id));
+});
+
 const httpServer = app.listen(3001, () => {
     console.log(
         `API Server running at http://localhost:${httpServer.address().port}`

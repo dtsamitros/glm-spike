@@ -1,13 +1,14 @@
 import { useRouter } from "next/router";
 import { useQueries, useQuery } from "react-query";
 import axios, { AxiosError } from "axios";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { db } from "@/src/index-db/guest-list";
 import imageApi from "@/src/api/image-api";
 
 export default function Home() {
     const router = useRouter();
     const eventId = router.query.eventId;
+    const [imageCount, setImageCount] = useState<number>(0);
 
     const {
         isLoading: eventLoading,
@@ -44,14 +45,27 @@ export default function Home() {
                 });
 
                 imageRequests.push(
-                    imageApi.get(guest.imageUrl).then(() => {
-                        db.guests.get(id);
-                    })
+                    imageApi
+                        .get(guest.imageUrl, { responseType: "arraybuffer" })
+                        .then((response) => {
+                            db.guests.get(id).then(async (guest) => {
+                                if (!guest) {
+                                    return;
+                                }
+
+                                guest.guestImageBase64 = Buffer.from(
+                                    response.data,
+                                    "binary"
+                                ).toString("base64");
+                                await db.guests.put(guest);
+
+                                setImageCount((imageCount) => imageCount + 1);
+                            });
+                        })
                 );
             }
 
             Promise.all(imageRequests).then(() => {
-                console.log("Done!!");
                 router.push(`/events/${eventId}`);
             });
         })();
@@ -65,5 +79,13 @@ export default function Home() {
         return <p>Loading...</p>;
     }
 
-    return <p>Loading images (...</p>;
+    if (!event?.guests.length) {
+        return <p>No guests</p>;
+    }
+
+    return (
+        <p>
+            Loading image {imageCount} of {event.guests.length}...
+        </p>
+    );
 }
