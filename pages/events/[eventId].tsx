@@ -6,14 +6,27 @@ import { db } from "@/src/index-db/guest-list";
 import { useEffect, useState, KeyboardEvent } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import axios, { AxiosError } from "axios";
+import { useMutation } from "react-query";
 
-// const createEmployee = async (data: Employee) => {
-//     const { data: response } = await axios.post(
-//         "https://employee.free.beeceptor.com/create",
-//         data
-//     );
-//     return response.data;
-// };
+function toastGuestMessage(name: string, imageBase64?: string) {
+    return (
+        <p>
+            {imageBase64 ? (
+                <img
+                    src={`data:image/jpeg;base64,${imageBase64}`}
+                    style={{
+                        width: "64px",
+                        height: "64px",
+                        float: "left",
+                        marginRight: "15px",
+                    }}
+                />
+            ) : undefined}
+            {name} checked in!
+        </p>
+    );
+}
 
 export default function Home() {
     const router = useRouter();
@@ -22,9 +35,24 @@ export default function Home() {
     const online = useOnlineStatus();
     const [eventName, setEventName] = useState("");
     const [inputGuestId, setInputGuestId] = useState("");
-    const [logLine, setLogLine] = useState("");
-    const [guestName, setGuestName] = useState("");
-    const [guestImage, setGuestImage] = useState("");
+
+    const { mutate: checkin } = useMutation(
+        (guests: number[]) => {
+            return axios
+                .post(`/api/events/${eventId}`, guests)
+                .then((response) => response.data);
+        },
+        {
+            onSuccess: (data, variables) => {
+                variables.forEach((guestId) => {
+                    db.guests.update(guestId, {
+                        checkedIn: new Date().toISOString(),
+                        pending: false,
+                    });
+                });
+            },
+        }
+    );
 
     const guests = useLiveQuery(() => db.guests.toArray());
 
@@ -42,45 +70,57 @@ export default function Home() {
         });
     }, [eventId]);
 
+    const processCheckins = () => {};
+
+    useEffect(() => {
+        if (!online || !guests) {
+            return;
+        }
+
+        const pending = guests
+            .filter((guest) => guest.pending)
+            .map((guest) => guest.id);
+
+        if (!pending.length) {
+            return;
+        }
+
+        checkin(pending);
+    }, [online, guests]);
+
     if (!eventId || !guests) {
         return;
     }
 
-    const processNewGuest = (guestId: number) => {
+    const checkinGuest = (guestId: number) => {
         const guest = guests.find((g) => g.id === guestId);
+
         if (!guest) {
             toast(`Guest not found`, { type: "warning" });
             return;
         }
 
-        setGuestName(guest.name);
         db.guestImages.get(guestId).then((image) => {
-            toast(
-                <p>
-                    {image ? (
-                        <img
-                            src={`data:image/jpeg;base64,${image.guestImageBase64}`}
-                            style={{
-                                width: "64px",
-                                height: "64px",
-                                float: "left",
-                                marginRight: "15px",
-                            }}
-                        />
-                    ) : undefined}
-                    {guest.name} checked in!
-                </p>
-            );
+            toast(toastGuestMessage(guest.name, image?.guestImageBase64));
         });
+
+        db.guests.update(guestId, { pending: true });
     };
+
+    const checkedInCount = guests.filter((g) => g.checkedIn).length;
+    const totalCount = guests.length;
+    const pendingCount = guests.filter((g) => g.pending).length;
+    const pendingStyle = { color: "orange", fontWeight: "bold" };
 
     return (
         <>
             <p>
                 {`${eventName}, `}
-                {`Guests: ${guests.length}, `}
-                {`CheckedIn: ${guests.filter((g) => g.checkedIn).length}, `}
-                {`Pending: ${guests.filter((g) => g.pending).length} `}
+                {`CheckedIn: ${checkedInCount} / ${totalCount}, `}
+                {`Pending: `}
+                <span style={pendingCount ? pendingStyle : {}}>
+                    {pendingCount}
+                </span>
             </p>
             <p>
                 <input
@@ -88,14 +128,13 @@ export default function Home() {
                     value={inputGuestId}
                     onKeyDown={(e) => {
                         if (e.key === "Enter") {
-                            processNewGuest(+inputGuestId);
+                            checkinGuest(+inputGuestId);
                             setInputGuestId("");
                         }
                     }}
                     onChange={(e) => setInputGuestId(e.target.value)}
                 />
             </p>
-            {logLine ? <p>{logLine}</p> : undefined}
             <p>Guest ids between 1 and {guests.length}</p>
             <div
                 style={{
@@ -104,7 +143,9 @@ export default function Home() {
                     borderRadius: "10px",
                     backgroundColor: online ? "green" : "red",
                 }}
-            ></div>
+            >
+                {online ? null : " Offline"}
+            </div>
             <p>
                 <Link href="/">Home</Link>
             </p>

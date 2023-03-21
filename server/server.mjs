@@ -30,7 +30,9 @@ await db.read();
 if (!db.data) {
     console.log("Setting up some example events and guests");
 
-    const images = readFileSync(IMAGES_FILE, "utf-8").split("\n").filter(Boolean);
+    const images = readFileSync(IMAGES_FILE, "utf-8")
+        .split("\n")
+        .filter(Boolean);
     console.log(`${images.length} available images`);
 
     const sampleEvents = [];
@@ -91,10 +93,32 @@ app.route("/events/:id").get((req, res) => {
     res.status(200).json(events.find((event) => event.id === +req.params.id));
 });
 
-app.route("/events/:id").post((req, res) => {
-    console.log(req.body);
+app.route("/events/:id").post(async (req, res) => {
+    if (!Array.isArray(req.body)) {
+        res.status(400).send("expecting and array");
+        return;
+    }
 
-    res.status(200).json(events.find((event) => event.id === +req.params.id));
+    const event = events.find((event) => event.id === +req.params.id);
+
+    if (!event) {
+        res.status(404).send("Event not found");
+        return;
+    }
+
+    req.body.forEach((guestId) => {
+        const guest = event.guests.find((guest) => guest.id === guestId);
+
+        if (guest) {
+            guest.checkedIn = new Date().toISOString();
+        }
+    });
+
+    await db.write();
+
+    res.status(200).json(
+        event.guests.filter((guest) => !guest.checkedIn).length
+    );
 });
 
 const httpServer = app.listen(3001, () => {
@@ -102,3 +126,14 @@ const httpServer = app.listen(3001, () => {
         `API Server running at http://localhost:${httpServer.address().port}`
     );
 });
+
+// (function () {
+//     let lines = [];
+//     for (let image of document.getElementsByTagName("img")) {
+//         if (image.src.startsWith("https://assets.in-cdn.net/image/120_120")) {
+//             lines.push(image.src);
+//         }
+//     }
+//     console.log(lines.length);
+//     console.log(lines.join("\n"));
+// })();
