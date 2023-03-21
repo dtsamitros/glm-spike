@@ -1,12 +1,11 @@
 import { useRouter } from "next/router";
-import Link from "next/link";
 import { useOnlineStatus } from "@/src/onlineStatus";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/src/index-db/guest-list";
 import { useEffect, useState, KeyboardEvent } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import { useMutation } from "react-query";
 
 function toastGuestMessage(name: string, imageBase64?: string) {
@@ -135,20 +134,35 @@ export default function Home() {
                     onChange={(e) => setInputGuestId(e.target.value)}
                 />
             </p>
-            <p>Guest ids between 1 and {guests.length}</p>
-            <div
-                style={{
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "10px",
-                    backgroundColor: online ? "green" : "red",
-                }}
-            >
-                {online ? null : " Offline"}
-            </div>
             <p>
-                <Link href="/">Home</Link>
+                <small>(Guest ids between 1 and {guests.length})</small>
             </p>
+            <p>
+                <button
+                    disabled={pendingCount > 0}
+                    onClick={() => {
+                        db.delete().then(() => (window.location.href = "/"));
+                    }}
+                >
+                    Finish!
+                </button>
+            </p>
+            <div>
+                <div
+                    style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "4px",
+                        backgroundColor: online ? "green" : "red",
+                        marginRight: "10px",
+                        float: "left",
+                    }}
+                ></div>
+                {online ? null : " Offline"}
+                {!online && pendingCount
+                    ? ", please connect to the internet at your earliest convenience to upload pending checkins"
+                    : null}
+            </div>
             <ToastContainer position="bottom-center" />
         </>
     );
