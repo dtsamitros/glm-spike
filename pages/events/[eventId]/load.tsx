@@ -7,7 +7,8 @@ import imageApi from "@/src/api/image-api";
 
 export default function Home() {
     const router = useRouter();
-    const eventId = router.query.eventId;
+    const eventId =
+        typeof router.query.eventId === "string" ? +router.query.eventId : 0;
     const [imageCount, setImageCount] = useState<number>(0);
 
     const {
@@ -21,55 +22,68 @@ export default function Home() {
             axios
                 .get<TEventGuestList>(`/api/events/${eventId}`)
                 .then((res) => res.data),
-        { enabled: !!eventId, refetchInterval: 0 }
+        { enabled: Boolean(eventId), refetchInterval: 0, cacheTime: 0 }
     );
 
     useEffect(() => {
-        if (!eventSuccess || !event.guests.length || !eventId) {
+        if (!eventSuccess || !event.guests.length || !eventId || !router) {
             return;
         }
 
         (async () => {
-            await db.guests.where("eventId").equals(event.id).delete();
+            console.log("Clearing current event from indexedDB");
+            await db.currentEvent?.clear();
+            console.log("Clearing guests from indexedDB");
+            await db.guests?.clear();
 
-            const imageRequests: Promise<any>[] = [];
+            console.log("Adding current event to indexedDB");
+            await db.currentEvent.add({
+                currentEvent: "currentEvent",
+                id: eventId,
+                name: event.name,
+            });
 
-            for (let guest of event.guests) {
-                const id = await db.guests.add({
-                    eventId: event.id,
-                    guestId: guest.id,
-                    guestName: guest.name,
-                    guestImageUrl: guest.imageUrl,
+            console.log("Processing guests");
+            const imageRequests = event.guests.map(async (guest) => {
+                console.log(`Adding guest ${guest.name} to indexedDB`);
+                await db.guests.add({
+                    id: guest.id,
+                    name: guest.name,
                     checkedIn: guest.checkedIn,
                     pending: false,
                 });
 
-                imageRequests.push(
-                    imageApi
-                        .get(guest.imageUrl, { responseType: "arraybuffer" })
-                        .then((response) => {
-                            db.guests.get(id).then(async (guest) => {
-                                if (!guest) {
-                                    return;
-                                }
+                return db.guestImages.get(guest.id).then((guestImage) => {
+                    if (guestImage) {
+                        console.log(`Guest image exists for ${guest.name}`);
+                        setImageCount((imageCount) => imageCount + 1);
+                        return Promise.resolve();
+                    }
 
-                                guest.guestImageBase64 = Buffer.from(
+                    return imageApi
+                        .get(guest.imageUrl, {
+                            responseType: "arraybuffer",
+                        })
+                        .then(async (response) => {
+                            console.log(`Adding guest image for ${guest.name}`);
+                            await db.guestImages.add({
+                                guestId: guest.id,
+                                guestImageBase64: Buffer.from(
                                     response.data,
                                     "binary"
-                                ).toString("base64");
-                                await db.guests.put(guest);
-
-                                setImageCount((imageCount) => imageCount + 1);
+                                ).toString("base64"),
                             });
-                        })
-                );
-            }
 
-            Promise.all(imageRequests).then(() => {
-                router.push(`/events/${eventId}`);
+                            setImageCount((imageCount) => imageCount + 1);
+                        });
+                });
             });
+
+            Promise.all(imageRequests).then(() =>
+                router.push(`/events/${eventId}`)
+            );
         })();
-    }, [eventSuccess]);
+    }, [event?.guests, eventId, eventSuccess, router]);
 
     if (eventError && eventError instanceof AxiosError) {
         return <div>Error: {eventError.message}</div>;

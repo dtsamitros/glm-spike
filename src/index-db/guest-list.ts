@@ -1,24 +1,36 @@
 import Dexie, { Table } from "dexie";
 
-export interface GuestList {
-    eventId: number;
-    guestId: number;
-    guestName: string;
-    guestImageUrl: string;
-    guestImageBase64?: string;
+export interface CurrentEvent {
+    currentEvent: "currentEvent";
+    id: number;
+    name: string;
+}
+
+export interface Guest {
+    id: number;
+    name: string;
     checkedIn: string | null;
     pending: boolean;
+}
+
+export interface GuestImage {
+    guestId: number;
+    guestImageBase64: string;
 }
 
 export class GuestListDb extends Dexie {
     // 'friends' is added by dexie when declaring the stores()
     // We just tell the typing system this is the case
-    guests!: Table<GuestList>;
+    currentEvent!: Table<CurrentEvent>;
+    guests!: Table<Guest>;
+    guestImages!: Table<GuestImage>;
 
     constructor() {
         super("guest-list");
         this.version(1).stores({
-            guests: "[eventId+guestId]", // Primary key
+            currentEvent: "currentEvent",
+            guests: "id",
+            guestImages: "guestId",
         });
     }
 }

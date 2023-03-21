@@ -40,8 +40,8 @@ if (!db.data) {
         for (let guestIndex = 1; guestIndex <= eventIndex * 100; guestIndex++) {
             guests.push({
                 id: guestIndex,
-                name: `Event #${eventIndex} Guest #${eventIndex}`,
-                imageUrl: images[Math.floor(Math.random() * images.length)],
+                name: `Event #${eventIndex} Guest #${guestIndex}`,
+                imageUrl: images[guestIndex % images.length],
                 checkedIn: null,
             });
         }
@@ -92,6 +92,8 @@ app.route("/events/:id").get((req, res) => {
 });
 
 app.route("/events/:id").post((req, res) => {
+    console.log(req.body);
+
     res.status(200).json(events.find((event) => event.id === +req.params.id));
 });
 
