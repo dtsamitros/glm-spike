@@ -3,12 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node ./server/server.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "server": "nodemon --watch ./server ./server/server.mjs",
-    "dev-all": "concurrently --kill-others \"yarn run dev\" \"yarn run server\""
+    "production": "NODE_ENV=production node ./server/server.mjs"
   },
   "dependencies": {
     "@types/node": "18.15.3",

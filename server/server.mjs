@@ -5,6 +5,7 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
+import next from "next";
 
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -71,72 +72,91 @@ if (!db.data) {
 
 const events = db.data;
 
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
-app.use((req, res, next) => setTimeout(next, TIMEOUT));
+const dev = process.env.NODE_ENV !== "production";
+const app = next({ dev });
+const handle = app.getRequestHandler();
 
-// catch the item operations and throw a 404 if the entity does not exist
-app.all("/ping", function (req, res) {
-    res.status(200).send("pong");
-});
+function server() {
+    const server = express();
+    server.use(cors());
+    server.use(bodyParser.json());
+    server.use(bodyParser.urlencoded({ extended: true }));
+    server.use((req, res, next) => setTimeout(next, TIMEOUT));
 
-app.all("/events", function (req, res) {
-    res.status(200).send(
-        events.map((event) => ({
-            id: event.id,
-            name: event.name,
-            guestCount: event.guests.length,
-        }))
-    );
-});
+    // catch the item operations and throw a 404 if the entity does not exist
+    server.all("/api/ping", function (req, res) {
+        res.status(200).send("pong");
+    });
 
-// catch the event operations and throw a 404 if the event does not exist
-app.all("/events/:id", function (req, res, next) {
-    if (!events.find((event) => event.id === +req.params.id)) {
-        res.status(404).send("Event not found");
-    } else {
-        next();
-    }
-});
+    server.all("/api/events", function (req, res) {
+        res.status(200).send(
+            events.map((event) => ({
+                id: event.id,
+                name: event.name,
+                guestCount: event.guests.length,
+            }))
+        );
+    });
 
-app.route("/events/:id").get((req, res) => {
-    res.status(200).json(events.find((event) => event.id === +req.params.id));
-});
-
-app.route("/events/:id").post(async (req, res) => {
-    if (!Array.isArray(req.body)) {
-        res.status(400).send("expecting and array");
-        return;
-    }
-
-    const event = events.find((event) => event.id === +req.params.id);
-
-    if (!event) {
-        res.status(404).send("Event not found");
-        return;
-    }
-
-    req.body.forEach((guestId) => {
-        const guest = event.guests.find((guest) => guest.id === guestId);
-
-        if (guest) {
-            guest.checkedIn = new Date().toISOString();
+    // catch the event operations and throw a 404 if the event does not exist
+    server.all("/api/events/:id", function (req, res, next) {
+        if (!events.find((event) => event.id === +req.params.id)) {
+            res.status(404).send("Event not found");
+        } else {
+            next();
         }
     });
 
-    await db.write();
+    server.route("/api/events/:id").get((req, res) => {
+        res.status(200).json(
+            events.find((event) => event.id === +req.params.id)
+        );
+    });
 
-    res.status(200).json(
-        event.guests.filter((guest) => !guest.checkedIn).length
-    );
-});
+    server.route("/api/events/:id").post(async (req, res) => {
+        if (!Array.isArray(req.body)) {
+            res.status(400).send("expecting and array");
+            return;
+        }
 
-const httpServer = app.listen(3001, () => {
-    console.log(
-        `API Server running at http://localhost:${httpServer.address().port}`
-    );
-});
+        const event = events.find((event) => event.id === +req.params.id);
+
+        if (!event) {
+            res.status(404).send("Event not found");
+            return;
+        }
+
+        req.body.forEach((guestId) => {
+            const guest = event.guests.find((guest) => guest.id === guestId);
+
+            if (guest) {
+                guest.checkedIn = new Date().toISOString();
+            }
+        });
+
+        await db.write();
+
+        res.status(200).json(
+            event.guests.filter((guest) => !guest.checkedIn).length
+        );
+    });
+
+    server.get("*", (req, res) => {
+        return handle(req, res);
+    });
+
+    server.listen(3000, (err) => {
+        if (err) throw err;
+        console.log("> Ready on http://localhost:3000");
+    });
+}
+
+app.prepare()
+    .then(server)
+    .catch((ex) => {
+        console.error(ex.stack);
+        process.exit(1);
+    });
 
 // (function () {
 //     let lines = [];
