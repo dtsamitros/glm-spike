@@ -4,11 +4,12 @@ export default function Document() {
     return (
         <Html lang="en">
             <Head>
+                <link rel="manifest" href="/manifest.json" />
                 <link
-                    href="https://fonts.googleapis.com/css?family=Roboto"
-                    rel="stylesheet"
-                    type="text/css"
-                />
+                    rel="apple-touch-icon"
+                    href="/apple-touch-icon.png"
+                ></link>
+                <meta name="theme-color" content="#fff" />
             </Head>
             <body>
                 <Main />

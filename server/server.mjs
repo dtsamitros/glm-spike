@@ -3,6 +3,7 @@
  */
 
 import express from "express";
+import cors from "cors";
 import bodyParser from "body-parser";
 
 import { join, dirname } from "node:path";
@@ -37,10 +38,18 @@ if (!db.data) {
     console.log(`${images.length} available images`);
 
     const sampleEvents = [];
-    for (let eventIndex = 1; eventIndex <= GUEST_LIST_SIZE.length; eventIndex++) {
+    for (
+        let eventIndex = 1;
+        eventIndex <= GUEST_LIST_SIZE.length;
+        eventIndex++
+    ) {
         // 100 guests for first event, 200 for second, 300 for third, etc
         const guests = [];
-        for (let guestIndex = 1; guestIndex <= GUEST_LIST_SIZE[eventIndex - 1]; guestIndex++) {
+        for (
+            let guestIndex = 1;
+            guestIndex <= GUEST_LIST_SIZE[eventIndex - 1];
+            guestIndex++
+        ) {
             guests.push({
                 id: guestIndex,
                 name: `Event #${eventIndex} Guest #${guestIndex}`,
@@ -63,6 +72,7 @@ if (!db.data) {
 const events = db.data;
 
 const app = express();
+app.use(cors());
 app.use(bodyParser.json());
 app.use((req, res, next) => setTimeout(next, TIMEOUT));
 

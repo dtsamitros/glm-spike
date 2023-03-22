@@ -37,3 +37,6 @@ next-env.d.ts
 
 /.idea/
 /server/db.json
+
+/public/sw.js
+/public/workbox-*.js
