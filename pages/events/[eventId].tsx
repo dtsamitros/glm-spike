@@ -1,14 +1,16 @@
 import { useRouter } from "next/router";
 import { useOnlineStatus } from "@/src/onlineStatus";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "@/src/index-db/guest-list";
+import { db, Guest } from '@/src/index-db/guest-list'
 import { useEffect, useState, KeyboardEvent } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
 import { useMutation } from "react-query";
+import Form from "react-bootstrap/Form";
+import Button from "react-bootstrap/Button";
 
-function toastGuestMessage(name: string, imageBase64?: string) {
+function toastGuestMessage(guest: Guest, imageBase64?: string) {
     return (
         <p>
             {imageBase64 ? (
@@ -22,7 +24,7 @@ function toastGuestMessage(name: string, imageBase64?: string) {
                     }}
                 />
             ) : undefined}
-            {name} checked in!
+            {`${guest.name} ${guest.checkedIn ? 're-checked' : 'checked'} in`}
         </p>
     );
 }
@@ -69,8 +71,6 @@ export default function Home() {
         });
     }, [eventId]);
 
-    const processCheckins = () => {};
-
     useEffect(() => {
         if (!online || !guests) {
             return;
@@ -100,7 +100,7 @@ export default function Home() {
         }
 
         db.guestImages.get(guestId).then((image) => {
-            toast(toastGuestMessage(guest.name, image?.guestImageBase64));
+            toast(toastGuestMessage(guest, image?.guestImageBase64));
         });
 
         db.guests.update(guestId, { pending: true });
@@ -122,7 +122,7 @@ export default function Home() {
                 </span>
             </p>
             <p>
-                <input
+                <Form.Control
                     type="text"
                     value={inputGuestId}
                     onKeyDown={(e) => {
@@ -132,20 +132,22 @@ export default function Home() {
                         }
                     }}
                     onChange={(e) => setInputGuestId(e.target.value)}
+                    style={{ width: "250px" }}
                 />
+                <Form.Text className="text-muted">
+                    (Guest ids between 1 and {guests.length})
+                </Form.Text>
             </p>
             <p>
-                <small>(Guest ids between 1 and {guests.length})</small>
-            </p>
-            <p>
-                <button
-                    disabled={pendingCount > 0}
+                <Button
+                    variant="outline-primary"
+                    disabled={!online || pendingCount > 0}
                     onClick={() => {
                         db.delete().then(() => (window.location.href = "/"));
                     }}
                 >
                     Finish!
-                </button>
+                </Button>
             </p>
             <div>
                 <div
