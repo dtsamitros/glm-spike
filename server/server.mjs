@@ -18,6 +18,7 @@ const TIMEOUT = 0;
 
 const IMAGES_FILE = join(dirname(fileURLToPath(import.meta.url)), "image.urls");
 const DATABASE_FILE = join(dirname(fileURLToPath(import.meta.url)), "db.json");
+const GUEST_LIST_SIZE = [100, 500, 1000];
 
 // Configure lowdb to write to JSONFile
 const adapter = new JSONFile(DATABASE_FILE);
@@ -36,10 +37,10 @@ if (!db.data) {
     console.log(`${images.length} available images`);
 
     const sampleEvents = [];
-    for (let eventIndex = 1; eventIndex <= 3; eventIndex++) {
+    for (let eventIndex = 1; eventIndex <= GUEST_LIST_SIZE.length; eventIndex++) {
         // 100 guests for first event, 200 for second, 300 for third, etc
         const guests = [];
-        for (let guestIndex = 1; guestIndex <= eventIndex * 100; guestIndex++) {
+        for (let guestIndex = 1; guestIndex <= GUEST_LIST_SIZE[eventIndex - 1]; guestIndex++) {
             guests.push({
                 id: guestIndex,
                 name: `Event #${eventIndex} Guest #${guestIndex}`,
